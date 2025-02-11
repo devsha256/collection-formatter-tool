@@ -1,0 +1,10 @@
+# common properties for the application
+app:
+  basePath: "/api"
+  path: "/*"
+  timeout:
+    read: "36000"
+    connectionIdle: "40000"
+  reconnection:
+    frequency: "2000"
+    attempts: "3"

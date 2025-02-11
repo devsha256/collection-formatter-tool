@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:listener-config name="collection-converter-tool-http-listener-config" doc:name="HTTP Listener config" doc:id="f9866799-46c6-488a-862d-cbfebfde1020" basePath="${app.basePath}" >
+		<http:listener-connection host="${app.host}" port="${app.port}" readTimeout="${app.timeout.read}" connectionIdleTimeout="${app.timeout.connectionIdle}" >
+			<reconnection failsDeployment="true" >
+				<reconnect frequency="${app.reconnection.frequency}" count="${app.reconnection.attempts}" />
+			</reconnection>
+		</http:listener-connection>
+	</http:listener-config>
+	<configuration-properties doc:name="Configuration properties" doc:id="b2e39fb6-7501-4a15-b112-fc7f0534ec95" file="configs/common-config.yaml" doc:description="common-config.yaml"/>
+	<configuration-properties doc:name="Configuration properties" doc:id="113844c0-ce2d-4faf-93d8-528ef509c42a" file="configs/${app.environment}-config.yaml" doc:description="configs\${app.environment}-config.yaml"/>
+</mule>

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="collection-converter-toolFlow" doc:id="cbc37a64-325e-49a9-9d01-041c0b052547" >
+		<http:listener doc:name="Listener" doc:id="0942f985-3d27-4a4a-b809-130f4966dcfc" config-ref="collection-converter-tool-http-listener-config" path="${app.path}">
+			<http:response statusCode="#[vars.httpStatus default 200]">
+				<http:headers ><![CDATA[#[output application/java --- vars.outboudnHeaders default {}]]]></http:headers>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatus]">
+				<http:body ><![CDATA[#[payload]]]></http:body>
+				<http:headers ><![CDATA[#[output application/java --- vars.outboudnHeaders default {}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<ee:transform doc:name="init variables" doc:id="136cccf4-7e12-4490-bfac-70dc6191136b" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="from" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.from]]></ee:set-variable>
+				<ee:set-variable variableName="to" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.to]]></ee:set-variable>
+				<ee:set-variable variableName="inputPath" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.inputPath]]></ee:set-variable>
+				<ee:set-variable variableName="outputPath" ><![CDATA[%dw 2.0
+output application/java
+---
+attributes.queryParams.outputPath]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="construct response" doc:id="8d5bec94-2630-4590-94c4-ecbf5530550d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status": "success"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
