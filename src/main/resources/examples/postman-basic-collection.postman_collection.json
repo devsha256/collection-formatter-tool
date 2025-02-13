@@ -4,12 +4,165 @@
 		"name": "postman-basic-collection",
 		"description": "# API Collection Converter - Postman Collection\n\nThis Postman collection provides examples for interacting with the API Collection Converter REST API. It includes requests for converting API collections between different formats, such as Postman, Insomnia, SOAP, and Advanced REST Connector.\n\n## Collection Structure\n\nThe collection is organized into folders, each representing a conversion scenario. Each folder contains at least one request, demonstrating a specific `from` and `to` conversion.\n\n## Requests\n\nEach request within the collection demonstrates how to call the `/convert` endpoint with the necessary query parameters (`from`, `to`, and `outputPath`) and request body containing the API collection data.\n\n**Key elements of each request:**\n\n- **Method:** `POST`\n    \n- **URL:** `{{baseUrl}}/convert` (where `{{baseUrl}}` is a variable you should set to your API endpoint)\n    \n- **Headers:** `Content-Type: application/json` or `Content-Type: application/xml` (depending on the format of your input data)\n    \n- **Body:** The API collection data in JSON or XML format. The key for the data should be `\"inputData\"`.\n    \n- **Query Parameters:**\n    \n    - `from`: The source format (e.g., `postman`, `insomnia`).\n        \n    - `to`: The target format (e.g., `insomnia`, `soap`).\n        \n    - `outputPath`: The desired output file path (e.g., `/path/to/output.json`). Note: The API may handle this parameter differently depending on deployment.\n        \n\n## Responses\n\nThe API will return a success status code (e.g., `200 OK`) upon successful conversion. The response body may contain additional information or status details. The converted data will be written to the specified `outputPath`. Error responses (e.g., `400 Bad Request`, `500 Internal Server Error`) will be returned if the conversion fails, along with an error message in the response body.\n\n## How to Use\n\n1. Import this collection into Postman.\n    \n2. Set the `{{baseUrl}}` variable to your API endpoint.\n    \n3. Modify the request bodies with your actual API collection data.\n    \n4. Adjust the query parameters (`from`, `to`, `outputPath`) as needed.\n    \n5. Send the requests to test the API.\n    \n\nThis collection provides a practical guide for using the API Collection Converter and simplifies the process of testing different conversion scenarios. Remember to consult the API documentation for more detailed information about the API and its capabilities.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "41089880",
-		"_collection_link": "https://mulesoft-dev-team-0232.postman.co/workspace/private-workspace~f81e16db-6166-484e-809a-14078228b3d4/collection/41089880-cd4f6bee-1d31-4481-8845-54db7f692994?action=share&source=collection_link&creator=41089880"
+		"_exporter_id": "41089880"
 	},
 	"item": [
 		{
-			"name": "ping",
+			"name": "level-one-folder",
+			"item": [
+				{
+					"name": "level-two-folder",
+					"item": [
+						{
+							"name": "health",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.log(\"Using token : \", pm.request.headers['Authorization']);"
+										],
+										"type": "text/javascript",
+										"packages": {}
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "x-correlation-id",
+										"value": "{{$guid}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/health",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"health"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "ping",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"console.log(\"Using token : \", pm.request.headers['Authorization']);"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "x-correlation-id",
+								"value": "{{$guid}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/ping",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"ping"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "convert",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{url}}/convert/:projectId?from=insomnia&to=postman&inputPath=c:/users/insomnia.json&outputPath=c:/users/desktop/postman-col",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"convert",
+								":projectId"
+							],
+							"query": [
+								{
+									"key": "from",
+									"value": "insomnia"
+								},
+								{
+									"key": "to",
+									"value": "postman"
+								},
+								{
+									"key": "inputPath",
+									"value": "c:/users/insomnia.json"
+								},
+								{
+									"key": "outputPath",
+									"value": "c:/users/desktop/postman-col"
+								}
+							],
+							"variable": [
+								{
+									"key": "projectId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "profile",
 			"event": [
 				{
 					"listen": "test",
@@ -42,66 +195,12 @@
 					}
 				],
 				"url": {
-					"raw": "{{url}}/ping",
+					"raw": "{{url}}/profile",
 					"host": [
 						"{{url}}"
 					],
 					"path": [
-						"ping"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "convert",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"exec": [
-							"pm.test(\"Status code is 200\", () => pm.response.to.have.status(200));"
-						],
-						"type": "text/javascript",
-						"packages": {}
-					}
-				}
-			],
-			"request": {
-				"method": "PUT",
-				"header": [],
-				"url": {
-					"raw": "{{url}}/convert/:projectId?from=insomnia&to=postman&inputPath=c:/users/insomnia.json&outputPath=c:/users/desktop/postman-col",
-					"host": [
-						"{{url}}"
-					],
-					"path": [
-						"convert",
-						":projectId"
-					],
-					"query": [
-						{
-							"key": "from",
-							"value": "insomnia"
-						},
-						{
-							"key": "to",
-							"value": "postman"
-						},
-						{
-							"key": "inputPath",
-							"value": "c:/users/insomnia.json"
-						},
-						{
-							"key": "outputPath",
-							"value": "c:/users/desktop/postman-col"
-						}
-					],
-					"variable": [
-						{
-							"key": "projectId",
-							"value": ""
-						}
+						"profile"
 					]
 				}
 			},

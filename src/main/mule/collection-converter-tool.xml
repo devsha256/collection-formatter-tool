@@ -1,51 +1,150 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
 	xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
-	<flow name="collection-converter-toolFlow" doc:id="cbc37a64-325e-49a9-9d01-041c0b052547" >
-		<http:listener doc:name="Listener" doc:id="0942f985-3d27-4a4a-b809-130f4966dcfc" config-ref="collection-converter-tool-http-listener-config" path="${app.path}">
-			<http:response statusCode="#[vars.httpStatus default 200]">
-				<http:headers ><![CDATA[#[output application/java --- vars.outboudnHeaders default {}]]]></http:headers>
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+	<flow name="collection-converter-toolFlow"
+		doc:id="cbc37a64-325e-49a9-9d01-041c0b052547" initialState="stopped">
+		<http:listener doc:name="Listener"
+			doc:id="0942f985-3d27-4a4a-b809-130f4966dcfc"
+			config-ref="collection-converter-tool-http-listener-config"
+			path="${app.path}">
+			<http:response
+				statusCode="#[vars.httpStatus default 200]">
+				<http:headers><![CDATA[#[output application/java --- vars.outboudnHeaders default {}]]]></http:headers>
 			</http:response>
-			<http:error-response statusCode="#[vars.httpStatus]">
-				<http:body ><![CDATA[#[payload]]]></http:body>
-				<http:headers ><![CDATA[#[output application/java --- vars.outboudnHeaders default {}]]]></http:headers>
+			<http:error-response
+				statusCode="#[vars.httpStatus]">
+				<http:body><![CDATA[#[payload]]]></http:body>
+				<http:headers><![CDATA[#[output application/java --- vars.outboudnHeaders default {}]]]></http:headers>
 			</http:error-response>
 		</http:listener>
-		<ee:transform doc:name="init variables" doc:id="136cccf4-7e12-4490-bfac-70dc6191136b" >
-			<ee:message >
+		<ee:transform doc:name="init variables"
+			doc:id="136cccf4-7e12-4490-bfac-70dc6191136b">
+			<ee:message>
 			</ee:message>
-			<ee:variables >
-				<ee:set-variable variableName="from" ><![CDATA[%dw 2.0
+			<ee:variables>
+				<ee:set-variable variableName="from"><![CDATA[%dw 2.0
 output application/java
 ---
 attributes.queryParams.from]]></ee:set-variable>
-				<ee:set-variable variableName="to" ><![CDATA[%dw 2.0
+				<ee:set-variable variableName="to"><![CDATA[%dw 2.0
 output application/java
 ---
 attributes.queryParams.to]]></ee:set-variable>
-				<ee:set-variable variableName="inputPath" ><![CDATA[%dw 2.0
+				<ee:set-variable variableName="inputPath"><![CDATA[%dw 2.0
 output application/java
 ---
 attributes.queryParams.inputPath]]></ee:set-variable>
-				<ee:set-variable variableName="outputPath" ><![CDATA[%dw 2.0
+				<ee:set-variable variableName="outputDirectory"><![CDATA[%dw 2.0
 output application/java
 ---
 attributes.queryParams.outputPath]]></ee:set-variable>
 			</ee:variables>
 		</ee:transform>
-		<ee:transform doc:name="construct response" doc:id="8d5bec94-2630-4590-94c4-ecbf5530550d" >
-			<ee:message >
-				<ee:set-payload ><![CDATA[%dw 2.0
+		<scatter-gather doc:name="Scatter-Gather"
+			doc:id="a4b5b5b4-6ca6-4d19-91d4-2c18cdb0a09a">
+			<route>
+				<ee:transform
+					doc:name="extract environments &amp; global"
+					doc:id="720b0478-1d5c-4ee2-a534-08b78801ca7d">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.resources[?$."_type" == "environment"]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<parallel-foreach
+					doc:name="Parallel For Each Environment"
+					doc:id="63a8a539-5513-45da-abe4-1bb04e527d87"
+					collection="#[payload]">
+					<ee:transform doc:name="PostmanComponent"
+						doc:id="51d74582-924c-4f02-b332-28c77133d835">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+dw::Postman::prepareEnvironmentDocument(payload)
+]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<ee:transform doc:name="write operation payload"
+						doc:id="45814fd0-fa44-4125-b657-6ff57d089763">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
 output application/json
 ---
 {
-	"status": "success"
+	data: payload.content,
+	fullpath: payload.filename,
+	writeMode: "OVERWRITE",
+	createParentDirectories: true
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<flow-ref doc:name="write-file-to-native-system-subflow"
+						doc:id="74fd3afa-857d-49a9-8f54-614e5cd6e6c7"
+						name="write-file-to-native-system-subflow" />
+				</parallel-foreach>
+				<ee:transform doc:name="capture status"
+					doc:id="b24e6187-1b9e-46f9-adf7-4200606a15db">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+			<route>
+				<ee:transform
+					doc:name="extract requests &amp; request groups"
+					doc:id="2a373ee5-b106-4fc9-b622-7e9f12ffa116">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload.resources[?$."_type" != "environment"]]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<ee:transform doc:name="#TODO"
+					doc:id="3592c974-fa64-4589-8a3f-621d90e66ef0">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	/* convert the insomnia requests, folder, request_group to postman folder and requests */
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</route>
+		</scatter-gather>
+		<ee:transform doc:name="construct response"
+			doc:id="8d5bec94-2630-4590-94c4-ecbf5530550d">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status": "success",
+	"environments": payload["0"].payload,
+	"collections": payload["1"].payload
 }]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 	</flow>
+	<sub-flow name="write-file-to-native-system-subflow" doc:id="1369c582-d73b-4622-a3c3-3f5fed14122b" >
+		<file:write doc:name="components to native system" doc:id="102edf42-030c-428f-87de-9f565470ce19" path="#[payload.fullpath]" mode="#[payload.writeMode]" createParentDirectories="#[payload.createParentDirectories]">
+			<file:content ><![CDATA[#[payload.data]]]></file:content>
+		</file:write>
+	</sub-flow>
 </mule>
