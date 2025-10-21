@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file"
+    xmlns:http="http://www.mulesoft.org/schema/mule/http"
+    xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+    xmlns="http://www.mulesoft.org/schema/mule/core"
+    xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+    http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+    http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+    http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+
+    <!-- File Connector Configuration -->
+    <file:config name="File_Config" doc:name="File Config">
+        <file:connection workingDir="${working.directory}" />
+    </file:config>
+
+    <!-- HTTP Listener Configuration -->
+    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config">
+        <http:listener-connection host="0.0.0.0" port="8081" />
+    </http:listener-config>
+
+    <!-- Main Flow -->
+    <flow name="combine-postman-collections-flow" doc:name="combine-postman-collections-flow">
+        
+        <http:listener doc:name="Listener" config-ref="HTTP_Listener_config" path="/combine-collections"/>
+        
+        <!-- List Environment Files -->
+        <file:list doc:name="List Environments" config-ref="File_Config" directoryPath="environments">
+            <file:matcher filenamePattern="*.json" />
+        </file:list>
+        
+        <set-variable value="#[payload]" doc:name="Set environmentFiles" variableName="environmentFiles"/>
+        
+        <!-- List Collection Files -->
+        <file:list doc:name="List Collections" config-ref="File_Config" directoryPath="collections">
+            <file:matcher filenamePattern="*.json" />
+        </file:list>
+        
+        <set-variable value="#[payload]" doc:name="Set collectionFiles" variableName="collectionFiles"/>
+        
+        <!-- Choice: With or Without Environments -->
+        <choice doc:name="Choice">
+            <when expression="#[sizeOf(vars.environmentFiles) &gt; 0]">
+                <foreach doc:name="For Each Environment" collection="#[vars.environmentFiles]">
+                    <flow-ref doc:name="Process Collections for Environment" name="process-collections-for-environment-subflow"/>
+                </foreach>
+            </when>
+            <otherwise>
+                <flow-ref doc:name="Combine Collections Without Environment" name="combine-collections-without-environment-subflow"/>
+            </otherwise>
+        </choice>
+        
+        <!-- Success Response -->
+        <ee:transform doc:name="Build Response">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Collections combined successfully",
+    environmentsProcessed: sizeOf(vars.environmentFiles default []),
+    collectionsProcessed: sizeOf(vars.collectionFiles),
+    timestamp: now()
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        
+        <!-- Error Handler -->
+        <error-handler>
+            <on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate">
+                <ee:transform doc:name="Error Response">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    error: error.description,
+    message: "Failed to combine collections",
+    timestamp: now()
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    
+    <!-- Sub Flow: Process Collections for Environment -->
+    <sub-flow name="process-collections-for-environment-subflow" doc:name="process-collections-for-environment-subflow">
+        
+        <file:read doc:name="Read Environment" config-ref="File_Config" path="#[payload.attributes.path]"/>
+        
+        <ee:transform doc:name="Parse Environment">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+            <ee:variables>
+                <ee:set-variable variableName="currentEnvironment"><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+                <ee:set-variable variableName="environmentName"><![CDATA[%dw 2.0
+output application/java
+---
+payload.name default "unknown-environment"]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        
+        <set-variable doc:name="Initialize Combined Collection" variableName="combinedCollection">
+            <![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    info: {
+        name: "Combined Collection - " ++ vars.environmentName,
+        description: "Flattened and combined collection with " ++ vars.environmentName ++ " environment values",
+        schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    item: []
+}]]]>
+        </set-variable>
+        
+        <foreach doc:name="For Each Collection" collection="#[vars.collectionFiles]" counterVariableName="collectionCounter">
+            <flow-ref doc:name="Process Single Collection" name="process-single-collection-subflow"/>
+        </foreach>
+        
+        <ee:transform doc:name="Prepare Output">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json indent=true
+---
+vars.combinedCollection]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        
+        <file:write doc:name="Write Combined Collection" 
+            config-ref="File_Config" 
+            path="#['output/combined-collection-' ++ vars.environmentName ++ '.json']"
+            mode="OVERWRITE"/>
+            
+        <logger level="INFO" doc:name="Logger" message="#['Combined collection created for environment: ' ++ vars.environmentName]"/>
+    </sub-flow>
+    
+    <!-- Sub Flow: Process Single Collection -->
+    <sub-flow name="process-single-collection-subflow" doc:name="process-single-collection-subflow">
+        
+        <set-variable value="#[payload.attributes.fileName]" doc:name="Set currentCollectionName" variableName="currentCollectionName"/>
+        
+        <file:read doc:name="Read Collection" config-ref="File_Config" path="#[payload.attributes.path]"/>
+        
+        <!-- CORE DATAWEAVE: Flatten and Replace Variables -->
+        <ee:transform doc:name="Flatten and Replace Variables">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+
+var collection = payload
+var envValues = vars.currentEnvironment.values default []
+var envMap = envValues reduce (item, acc={}) -> acc ++ {(item.key): item.value}
+
+var collectionVars = collection.variable default []
+var collectionVarMap = collectionVars reduce (item, acc={}) -> acc ++ {(item.key): item.value}
+
+// Replace variables in string
+fun replaceVariables(str: String): String = do {
+    var withEnvReplaced = envMap pluck (value, key) -> {key: key, value: value}
+        reduce (envVar, result=str) -> 
+            result replace ("\\{\\{" ++ envVar.key ++ "\\}\\}") with (envVar.value as String)
+    ---
+    collectionVarMap pluck (value, key) -> {key: key, value: value}
+        reduce (colVar, result=withEnvReplaced) -> 
+            result replace ("\\{\\{" ++ colVar.key ++ "\\}\\}") with (colVar.value as String)
+}
+
+// Process any value recursively
+fun processValue(value) = 
+    value match {
+        case is String -> replaceVariables(value)
+        case is Object -> value mapObject (v, k) -> {(k): processValue(v)}
+        case is Array -> value map processValue($)
+        else -> value
+    }
+
+// Process request
+fun processRequest(request) = 
+    request mapObject (value, key) -> {(key): processValue(value)}
+
+// Flatten nested items recursively
+fun flattenItems(items: Array): Array = 
+    items flatMap (item) -> 
+        if (item.request?) 
+            [{name: item.name, request: processRequest(item.request)}]
+        else if (item.item?)
+            flattenItems(item.item)
+        else []
+
+---
+flattenItems(collection.item default [])]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        
+        <set-variable doc:name="Append Requests" variableName="combinedCollection">
+            <![CDATA[#[%dw 2.0
+output application/json
+---
+vars.combinedCollection update {
+    case .item -> vars.combinedCollection.item ++ payload
+}]]]>
+        </set-variable>
+        
+        <logger level="INFO" doc:name="Logger" message="#['Processed collection: ' ++ vars.currentCollectionName ++ ', requests added: ' ++ sizeOf(payload)]"/>
+    </sub-flow>
+    
+    <!-- Sub Flow: No Environment -->
+    <sub-flow name="combine-collections-without-environment-subflow" doc:name="combine-collections-without-environment-subflow">
+        
+        <set-variable value="#[{ values: [] }]" doc:name="Set Empty Environment" variableName="currentEnvironment"/>
+        <set-variable value="'no-environment'" doc:name="Set Environment Name" variableName="environmentName"/>
+        
+        <set-variable doc:name="Initialize Combined Collection" variableName="combinedCollection">
+            <![CDATA[#[%dw 2.0
+output application/json
+---
+{
+    info: {
+        name: "Combined Collection - No Environment",
+        description: "Flattened and combined collection without environment variable substitution",
+        schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    item: []
+}]]]>
+        </set-variable>
+        
+        <foreach doc:name="For Each Collection" collection="#[vars.collectionFiles]" counterVariableName="collectionCounter">
+            <flow-ref doc:name="Process Single Collection" name="process-single-collection-subflow"/>
+        </foreach>
+        
+        <ee:transform doc:name="Prepare Output">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json indent=true
+---
+vars.combinedCollection]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        
+        <file:write doc:name="Write Combined Collection" 
+            config-ref="File_Config" 
+            path="output/combined-collection-no-environment.json"
+            mode="OVERWRITE"/>
+            
+        <logger level="INFO" doc:name="Logger" message="Combined collection created without environment"/>
+    </sub-flow>
+    
+</mule>
