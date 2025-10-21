@@ -132,7 +132,6 @@ vars.combinedCollection]]></ee:set-payload>
         <file:read doc:name="Read Collection" config-ref="File_Config" path="#[payload.attributes.path]"/>
         
         <ee:transform doc:name="Flatten and Replace Variables">
-            <ee:transform doc:name="Flatten and Replace Variables">
     <ee:message>
         <ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -151,25 +150,27 @@ fun replaceVariables(str: String): String = do {
     var envKeys = envMap pluck $$
     var colKeys = collectionVarMap pluck $$
     
+    // First pass: Replace with environment variables
     var withEnvReplaced = if (isEmpty(envKeys)) str 
         else envKeys reduce (key, result=str) -> 
             result replace ("\\{\\{" ++ key ++ "\\}\\}") with (envMap[key] as String)
     ---
+    // Second pass: Replace with collection variables
     if (isEmpty(colKeys)) withEnvReplaced
         else colKeys reduce (key, result=withEnvReplaced) -> 
             result replace ("\\{\\{" ++ key ++ "\\}\\}") with (collectionVarMap[key] as String)
 }
 
-// CORRECTED: Properly handles all types and preserves structure
-fun processValue(value): Any = 
+// This function ONLY processes values within REQUEST objects
+fun processRequestValue(value): Any = 
     if (value == null) null
     else value match {
         case is String -> replaceVariables(value)
         case is Number -> value
         case is Boolean -> value
-        case is Array -> value map processValue($)
+        case is Array -> value map processRequestValue($)
         case is Object -> value mapObject ((v, k) -> {
-            (k): processValue(v)
+            (k): processRequestValue(v)
         })
         else -> value
     }
@@ -180,9 +181,11 @@ fun flattenItems(items: Array): Array =
         if (item.request?) 
             [{
                 name: item.name,
-                request: processValue(item.request)
+                // ONLY apply variable replacement to the request object
+                request: processRequestValue(item.request)
             }]
         else if (item.item?)
+            // Recurse through folders without modifying anything
             flattenItems(item.item)
         else
             []
@@ -192,7 +195,6 @@ flattenItems(collection.item default [])]]></ee:set-payload>
     </ee:message>
 </ee:transform>
 
-        
         <!-- CORRECTED: Using value attribute with inline DataWeave -->
         <set-variable variableName="combinedCollection" doc:name="Append Requests"
             value="#[%dw 2.0 output application/json --- vars.combinedCollection update {case .item -&gt; vars.combinedCollection.item ++ payload}]"/>
