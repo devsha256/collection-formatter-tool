@@ -137,10 +137,13 @@ vars.combinedCollection]]></ee:set-payload>
 output application/json
 
 var collection = payload
+
+// Extract environment variables
 var envValues = vars.currentEnvironment.values default []
 var envMap = envValues reduce (item, acc={}) -> 
     acc ++ {(item.key): item.value}
 
+// Get collection variables
 var collectionVars = collection.variable default []
 var collectionVarMap = collectionVars reduce (item, acc={}) -> 
     acc ++ {(item.key): item.value}
@@ -150,18 +153,18 @@ fun replaceVariables(str: String): String = do {
     var envKeys = envMap pluck $$
     var colKeys = collectionVarMap pluck $$
     
-    // First pass: Replace with environment variables
+    // First: Replace environment variables (highest priority)
     var withEnvReplaced = if (isEmpty(envKeys)) str 
         else envKeys reduce (key, result=str) -> 
             result replace ("\\{\\{" ++ key ++ "\\}\\}") with (envMap[key] as String)
     ---
-    // Second pass: Replace with collection variables
+    // Second: Replace collection variables (fallback)
     if (isEmpty(colKeys)) withEnvReplaced
         else colKeys reduce (key, result=withEnvReplaced) -> 
             result replace ("\\{\\{" ++ key ++ "\\}\\}") with (collectionVarMap[key] as String)
 }
 
-// This function ONLY processes values within REQUEST objects
+// Process any value recursively - preserves structure
 fun processRequestValue(value): Any = 
     if (value == null) null
     else value match {
@@ -181,11 +184,9 @@ fun flattenItems(items: Array): Array =
         if (item.request?) 
             [{
                 name: item.name,
-                // ONLY apply variable replacement to the request object
                 request: processRequestValue(item.request)
             }]
         else if (item.item?)
-            // Recurse through folders without modifying anything
             flattenItems(item.item)
         else
             []
@@ -194,6 +195,7 @@ fun flattenItems(items: Array): Array =
 flattenItems(collection.item default [])]]></ee:set-payload>
     </ee:message>
 </ee:transform>
+
 
         <!-- CORRECTED: Using value attribute with inline DataWeave -->
         <set-variable variableName="combinedCollection" doc:name="Append Requests"
