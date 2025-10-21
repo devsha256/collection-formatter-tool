@@ -100,20 +100,9 @@ payload.name default "unknown-environment"]]></ee:set-variable>
             </ee:variables>
         </ee:transform>
         
-        <!-- CORRECTED: Removed 'value' attribute -->
-        <set-variable doc:name="Initialize Combined Collection" variableName="combinedCollection">
-            <![CDATA[#[%dw 2.0
-output application/json
----
-{
-    info: {
-        name: "Combined Collection - " ++ vars.environmentName,
-        description: "Flattened and combined collection with " ++ vars.environmentName ++ " environment values",
-        schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    item: []
-}]]]>
-        </set-variable>
+        <!-- CORRECTED: Using value attribute with inline DataWeave -->
+        <set-variable variableName="combinedCollection" doc:name="Initialize Combined Collection" 
+            value="#[%dw 2.0 output application/json --- {info: {name: &quot;Combined Collection - &quot; ++ vars.environmentName, description: &quot;Flattened and combined collection with &quot; ++ vars.environmentName ++ &quot; environment values&quot;, schema: &quot;https://schema.getpostman.com/json/collection/v2.1.0/collection.json&quot;}, item: []}]"/>
         
         <foreach doc:name="For Each Collection" collection="#[vars.collectionFiles]" counterVariableName="collectionCounter">
             <flow-ref doc:name="Process Single Collection" name="process-single-collection-subflow"/>
@@ -156,7 +145,6 @@ var collectionVars = collection.variable default []
 var collectionVarMap = collectionVars reduce (item, acc={}) -> 
     acc ++ {(item.key): item.value}
 
-// CORRECTED: 4 backslashes for regex escaping
 fun replaceVariables(str: String): String = do {
     var withEnvReplaced = envMap pluck (value, key) -> {key: key, value: value}
         reduce (envVar, result=str) -> 
@@ -199,15 +187,9 @@ flattenItems(collection.item default [])]]></ee:set-payload>
             </ee:message>
         </ee:transform>
         
-        <!-- CORRECTED: Removed 'value' attribute -->
-        <set-variable doc:name="Append Requests" variableName="combinedCollection">
-            <![CDATA[#[%dw 2.0
-output application/json
----
-vars.combinedCollection update {
-    case .item -> vars.combinedCollection.item ++ payload
-}]]]>
-        </set-variable>
+        <!-- CORRECTED: Using value attribute with inline DataWeave -->
+        <set-variable variableName="combinedCollection" doc:name="Append Requests"
+            value="#[%dw 2.0 output application/json --- vars.combinedCollection update {case .item -&gt; vars.combinedCollection.item ++ payload}]"/>
         
         <logger level="INFO" doc:name="Logger" message="#['Processed collection: ' ++ vars.currentCollectionName ++ ', requests added: ' ++ sizeOf(payload)]"/>
         
@@ -218,20 +200,9 @@ vars.combinedCollection update {
         <set-variable value="#[{ values: [] }]" doc:name="Set Empty Environment" variableName="currentEnvironment"/>
         <set-variable value="'no-environment'" doc:name="Set Environment Name" variableName="environmentName"/>
         
-        <!-- CORRECTED: Removed 'value' attribute -->
-        <set-variable doc:name="Initialize Combined Collection" variableName="combinedCollection">
-            <![CDATA[#[%dw 2.0
-output application/json
----
-{
-    info: {
-        name: "Combined Collection - No Environment",
-        description: "Flattened and combined collection without environment variable substitution",
-        schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-    },
-    item: []
-}]]]>
-        </set-variable>
+        <!-- CORRECTED: Using value attribute with inline DataWeave -->
+        <set-variable variableName="combinedCollection" doc:name="Initialize Combined Collection"
+            value="#[%dw 2.0 output application/json --- {info: {name: &quot;Combined Collection - No Environment&quot;, description: &quot;Flattened and combined collection without environment variable substitution&quot;, schema: &quot;https://schema.getpostman.com/json/collection/v2.1.0/collection.json&quot;}, item: []}]"/>
         
         <foreach doc:name="For Each Collection" collection="#[vars.collectionFiles]" counterVariableName="collectionCounter">
             <flow-ref doc:name="Process Single Collection" name="process-single-collection-subflow"/>
